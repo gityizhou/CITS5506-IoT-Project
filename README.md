@@ -31,7 +31,7 @@ pip install -r requirements.txt
 
 ### Running
 
-run the main function __main__ in data_process.py
+run main function in app.py
 
 
 ## Authors

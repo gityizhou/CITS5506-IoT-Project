@@ -1,4 +1,4 @@
-from solarpanel.data_process import get_google_sheet, gsheet2df
+from solarpanel.data_processing import get_google_sheet, gsheet2df
 from solarpanel.data_visualization import dash_test1
 import dash
 
