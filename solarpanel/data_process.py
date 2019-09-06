@@ -5,10 +5,7 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import pandas as pd
-import numpy as np
-import dash
-import dash_core_components as dcc
-import dash_html_components as html
+
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
@@ -74,43 +71,3 @@ def gsheet2df(result):
         df = pd.concat(all_data, axis=1)
         return df
 
-
-# one test demo for playing data on dash
-def dash_test1(app, data):
-    # choose data from raw data sets
-    y = np.array(data['WA'])
-    x = np.array(data['Year'])
-    colors = {
-        'background': '#111111',
-        'text': '#7FDBFF'
-    }
-    app.layout = html.Div(style={'backgroundColor': colors['background']},
-                          children=[
-                              html.H1(children='Hello Megan, Lin! ', style={'textAlign': 'center', 'color': '#7FDBFF'}),
-                              dcc.Graph(
-                                  id='line',
-                                  config={'showAxisRangeEntryBoxes': True},
-                                  figure={
-                                      'data': [
-                                          {'x': x, 'y': y, 'type': 'Scatter', 'name': 'Line'},
-                                      ],
-                                      'layout': {
-                                          'plot_bgcolor': colors['background'],
-                                          'paper_bgcolor': colors['background'],
-                                          'font': {
-                                              'color': colors['text']
-                                          },
-                                          'title': 'Number of small-scale PV systems installed in WA'
-
-                                      }
-                                  }
-                              )
-                          ])
-
-
-if __name__ == '__main__':
-    df = gsheet2df(get_google_sheet())
-    data = df[['Year', 'WA']]
-    app = dash.Dash()
-    dash_test1(app, data)
-    app.run_server(debug=True)
