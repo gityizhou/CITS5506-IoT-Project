@@ -8,7 +8,6 @@ import pandas as pd
 
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-
 # The google sheet ID
 SAMPLE_SPREADSHEET_ID = '1q53WTNloSUgEsD2g31wr74CSmvVTSDRmUVhR9dKXT_w'
 # range of spreadsheet
