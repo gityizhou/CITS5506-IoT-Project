@@ -37,8 +37,8 @@ run the main function __main__ in data_process.py
 ## Authors
  
 FirstName	  Surname       	Email
-* Yi	      Zhou	          22302319@student.uwa.edu.au
 * Megan	    Born	          22161695@student.uwa.edu.au
-* Lin	      Bai	            22453145@student.uwa.edu.au
+* Lin	      Bai	           22453145@student.uwa.edu.au
+* Yi	       Zhou	          22302319@student.uwa.edu.au
 
 
