@@ -19,14 +19,13 @@ Generate a virtual environment and install dependencies:
 ```
 Unix:
 $ python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+$ source venv/bin/activate
+$ (venv) pip install -r requirements.txt
 
 Windows:
 $ python3 -m venv venv
-$ venv\Scripts\activate
-(venv) $ _
-pip install -r requirements.txt
+$ venv\Scripts\activate.bat
+$ (venv) pip install -r requirements.txt
 ```
 
 ### Running
