@@ -3,7 +3,7 @@ Our proposed project is to develop an Internet of Things (IoT) sensor to measure
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
 
 ### Installing
 
@@ -23,6 +23,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 Windows:
+$ python3 -m venv venv
 $ venv\Scripts\activate
 (venv) $ _
 pip install -r requirements.txt
