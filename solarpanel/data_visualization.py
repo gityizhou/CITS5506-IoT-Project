@@ -6,8 +6,8 @@ import dash_html_components as html
 # one test demo for playing data on dash
 def dash_test1(app, data):
     # choose data from raw data sets
-    y = np.array(data['WA'])
-    x = np.array(data['Year'])
+    y = np.array(data['BillReduction'])
+    x = np.array(data['Month'])
     colors = {
         'background': '#111111',
         'text': '#7FDBFF'
@@ -16,11 +16,11 @@ def dash_test1(app, data):
                           children=[
                               html.H1(children='Hello Megan, Lin! ', style={'textAlign': 'center', 'color': '#7FDBFF'}),
                               dcc.Graph(
-                                  id='line',
+                                  id='bar',
                                   config={'showAxisRangeEntryBoxes': True},
                                   figure={
                                       'data': [
-                                          {'x': x, 'y': y, 'type': 'Scatter', 'name': 'Line'},
+                                          {'x': x, 'y': y, 'type': 'bar', 'name': 'Line'},
                                       ],
                                       'layout': {
                                           'plot_bgcolor': colors['background'],
@@ -28,7 +28,7 @@ def dash_test1(app, data):
                                           'font': {
                                               'color': colors['text']
                                           },
-                                          'title': 'Number of small-scale PV systems installed in WA'
+                                          'title': 'Monthly savings'
 
                                       }
                                   }

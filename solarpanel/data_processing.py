@@ -7,13 +7,13 @@ from google.auth.transport.requests import Request
 import pandas as pd
 
 
+
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-# The google sheet ID
-SAMPLE_SPREADSHEET_ID = '1q53WTNloSUgEsD2g31wr74CSmvVTSDRmUVhR9dKXT_w'
+# The google sheet ID - will need to make sure this is up to date once the sensor is connected
+SAMPLE_SPREADSHEET_ID = '1P4gwpYzmONzCEiHe6IrZNU6V25RDOgdGZg0XhU-u6uc'
 # range of spreadsheet
 # (if you only write the sheet name, it means the whole sheet)
-SAMPLE_RANGE_NAME = 'test_data'
-
+SAMPLE_RANGE_NAME = 'PiData!A1:C'
 
 def get_google_sheet():
     """Shows basic usage of the Sheets API.
