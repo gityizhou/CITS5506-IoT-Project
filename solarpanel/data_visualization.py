@@ -6,7 +6,7 @@ from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 from datetime import datetime as dt
 
-# one test demo for playing data on dash
+# function to run calculations - takes in a dataframe of solar data, area of panels to install, tariffs and calculates generation, costs and savings
 
 def runcalcs(df, InstalledPanelA, TariffFeedIn, TariffOffPeak, TariffShoulder, TariffPeak):
 
@@ -24,13 +24,15 @@ def runcalcs(df, InstalledPanelA, TariffFeedIn, TariffOffPeak, TariffShoulder, T
     df["GridConsumed(kW)"] = df["GridConsumed(kW)"].clip(lower=0)
     Interval = pd.Timedelta(df["Timestamp"][1] - df["Timestamp"][0]).seconds / 60
     df["Weekday"] = df["Timestamp"].dt.dayofweek  # Monday = 0, Sunday = 6
-    df["Month"] = df["Timestamp"].dt.month
-    df["Hour"] = df["Timestamp"].dt.hour
+    df["Month"] = df["Timestamp"].dt.month # month in number format - for use in summarising results
+    df["Hour"] = df["Timestamp"].dt.hour # hour of this interval in number format - for determining appropriate tariff
 
+    # map days of the week to weekdays/weekend - used to determine appropriate tariff
     df_days = pd.Series([0, 0, 0, 0, 0, 1, 1], index=[0, 1, 2, 3, 4, 5, 6])  # 0 = weekday, 1 = weekend
-    df["DayType"] = df["Weekday"].map(df_days)
+    df["DayType"] = df["Weekday"].map(df_days) # m
 
-    # this sets up the timings for peak/offpeak tariffs from the grid. We could use these as inputs on the dash but that might be too complicated
+    # this sets up the timings for peak/offpeak tariffs from the grid
+    # uses times from Synergy current rates
     # 0 = offpeak, 1 = shoulder, 2 = peak
     conditions = [
         (df["Hour"] < 7) | (df["Hour"] >= 21),  # before 7am or after 9pm
@@ -39,7 +41,7 @@ def runcalcs(df, InstalledPanelA, TariffFeedIn, TariffOffPeak, TariffShoulder, T
         (df["Weekday"] == 0) & (df["Hour"] >= 15) & (df["Hour"] < 21)]  # weekdays from 3pm-9pm
     choices = [0, 1, 1, 2]
 
-    df["TariffType"] = np.select(conditions, choices)
+    df["TariffType"] = np.select(conditions, choices) # identify which tariff applies in each interval
     df["Tariff"] = df["TariffType"].map(df_tariffs)  # map actual tariffs in c/kWh onto the intervals
 
     df["RevenueFeedIn"] = df["SolarExported(kW)"] / (60 / Interval) * TariffFeedIn / 100  # how much money is made from exporting solar
@@ -72,6 +74,7 @@ def dash_test1(app, sensor_df):
         """
         return html.Div(
             id="control-card",
+            # all of the controls for the dash
             children=[
                 html.P("Area of panels to install (m2):"),
                 dcc.Slider(id='input-area', min=1, max=20, value=5, marks={i: '{}'.format(i) for i in range(20)}), # default is 5m2
@@ -118,14 +121,14 @@ def dash_test1(app, sensor_df):
     app.layout = html.Div(
         id="app-container",
         children=[
-            # Left column
+            # Left column - header, description and controls
             html.Div(
                 id="left-column",
                 className="four columns",
                 children=[description_card(), generate_control_card()],
                 style={'marginBottom': 50, 'marginTop': 25}
             ),
-            # Right column
+            # Right column - charts
             html.Div(
                 id="right-column",
                 className="eight columns",
@@ -136,7 +139,7 @@ def dash_test1(app, sensor_df):
                     html.Br(),
                     html.Hr(),
 
-                    # Payback period
+                    # Payback period and annual savings text
                     html.B("Payback period and annual savings"),
                     html.Div(id='payback'),
                     html.Hr(),
