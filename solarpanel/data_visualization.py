@@ -5,7 +5,7 @@ from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 from datetime import datetime as dt
 from solarpanel.data_processing import get_google_data, gsheet2df, runcalcs
-import config
+import settings
 
 def dash_test1(app, df_annual):
 
@@ -20,9 +20,12 @@ def dash_test1(app, df_annual):
   #              html.H3("Put some subheading text here if needed"),
                 html.Div(
                     id="intro",
-                    children="Based on sensor data collected, explore the impact of the proposed size of installed solar panels and electricity pricing structures.",
+                    children="Explore the impact of the proposed size of installed solar panels and electricity pricing structures for the solar data collected.",
                 ),
-                html.Br(),
+                # Payback period and annual savings text
+                html.Div(id='payback'),
+               # html.Hr(),
+
             ],
         )
 
@@ -35,27 +38,27 @@ def dash_test1(app, df_annual):
             # all of the controls for the dash
             children=[
                 html.P("Area of panels to install (m2):"),
-                dcc.Slider(id='input-area', min=1, max=20, value=5, marks={i: '{}'.format(i) for i in range(20)}), # default is 5m2
+                dcc.Input(id='input-area', value=settings.default_area, type='number'), # default is 5m2
                 html.Br(),
                 html.Br(),
                 html.P("Cost of panels to install ($/m2):"),
-                dcc.Input(id='input-panelcost', value=1500, type='number'),  # default is $1500/m2
+                dcc.Input(id='input-panelcost', value= settings.default_panelcost, type='number'),  # default is $1500/m2
                 html.Br(),
                 html.Br(),
                 html.P("Feed in tariff (c/kWh):"),
-                dcc.Input(id='input-feedin', value=7.135, type='number'),  # default is 7.135c/kWh
+                dcc.Input(id='input-feedin', value=settings.default_feedin, type='number'),  # default is 7.135c/kWh
                 html.Br(),
                 html.Br(),
                 html.P("Off peak tariff (c/kWh):"),
-                dcc.Input(id='input-offpeak', value=15.1002, type='number'),  # default is 15.1002c/kWh
+                dcc.Input(id='input-offpeak', value=settings.default_offpeak, type='number'),  # default is 15.1002c/kWh
                 html.Br(),
                 html.Br(),
                 html.P("Shoulder tariff (c/kWh):"),
-                dcc.Input(id='input-shoulder', value=28.7076, type='number'),  # default is 28.7076c/kWh
+                dcc.Input(id='input-shoulder', value=settings.default_shoulder, type='number'),  # default is 28.7076c/kWh
                 html.Br(),
                 html.Br(),
                 html.P("Peak tariff (c/kWh):"),
-                dcc.Input(id='input-peak', value=54.8142, type='number'),  # default is 54.8142c/kWh
+                dcc.Input(id='input-peak', value=settings.default_peak, type='number'),  # default is 54.8142c/kWh
                 html.Br(),
                 html.Br(),
                 html.P("Select date range:"),
@@ -68,57 +71,72 @@ def dash_test1(app, df_annual):
                     initial_visible_month=dt(2018, 1, 1),
                 ),
                 html.Br(),
-                html.Br(),
+               html.Br(),
                 html.Div(
                     id="reset-btn-outer",
-                    children=html.Button(id="reset-btn", children="Reset", n_clicks=0),
+                    children=html.Button(id="reset-btn", children="Reset all", n_clicks=0),
                 ),
-            ],
+            ]
         )
 
     app.layout = html.Div(
         id="app-container",
         children=[
-            # Left column - header, description and controls
+
             html.Div(
-                id="left-column",
-                className="four columns",
-                children=[description_card(), generate_control_card()],
+                id="titlebox",
+                className="twelve columns",
+                children=[description_card()],
                 style={'marginBottom': 50, 'marginTop': 25}
             ),
+
+            html.Div(
+                id="left-column",
+                className="three columns",
+                children=[generate_control_card()],
+                style={'marginLeft': 20, 'marginRight': 20}
+            ),
+
             # Right column - charts
             html.Div(
-                id="right-column",
-                className="eight columns",
+                id="mid-column",
+                className="four columns",
                 children=[
-                    html.Br(),
-                    html.Br(),
-                    html.Br(),
-                    html.Br(),
-                    html.Hr(),
-
-                    # Payback period and annual savings text
-                    html.B("Payback period and annual savings"),
-                    html.Div(id='payback'),
-                    html.Hr(),
 
                     # Zeroth chart - live sensor data
                     html.Div(
                         id="sensor-graph",
                         children=[
                             html.B("Live sensor data"),
-                            dcc.Graph(id="sensorstream"),
-                            dcc.Interval(id='interval-component',interval=5*1000),
+                            dcc.Graph(id="sensorstream", style={'height': '300px', 'marginBottom':'5px'}),
+                            dcc.Interval(id='interval-component',interval=settings.wait_seconds*1000), # interval is in milliseconds so x1000
+                            html.Hr(),
+                        ],
+
+                    ),
+
+                    # Third chart
+                    html.Div(
+                        id="third-graph",
+                        children=[
+                            html.B("Annual sensor data"),
+                            dcc.Graph(id="sensorgraph", style={'height': '300px'}),
                             html.Hr(),
                         ],
                     ),
+                ],
+            ),
 
-                   # First chart
+            html.Div(
+                id="right-column",
+                className="four columns",
+                children=[
+                    # First chart
                     html.Div(
                         id="first-graph",
                         children=[
-                            html.B("Monthly savings"),
-                            dcc.Graph(id="monthlysavingsgraph"),
+                            html.B("Monthly savings - reduction in electricity bill"),
+                            dcc.Graph(id="monthlysavingsgraph", style={'height': '250px'}),
                             html.Hr(),
                         ],
                     ),
@@ -127,18 +145,8 @@ def dash_test1(app, df_annual):
                     html.Div(
                         id="second-graph",
                         children=[
-                            html.B("Monthly electricity splits"),
-                            dcc.Graph(id="monthlydetailedgraph"),
-                            html.Hr(),
-                        ],
-                    ),
-
-                    # Third chart
-                    html.Div(
-                        id="third-graph",
-                        children=[
-                            html.B("Annual sensor data"),
-                            dcc.Graph(id="sensorgraph"),
+                            html.B("Monthly electricity breakdown by source"),
+                            dcc.Graph(id="monthlydetailedgraph", style={'height': '250px'}),
                             html.Hr(),
                         ],
                     ),
@@ -161,13 +169,13 @@ def dash_test1(app, df_annual):
     @app.callback(Output('sensorstream', 'figure'),
                   [Input('interval-component', 'n_intervals')])
     def update_metrics(n):
-        df_actual = gsheet2df(get_google_data(SENSOR_RANGE))
+        df_actual = gsheet2df(get_google_data(settings.SENSOR_RANGE))
         df_actual.rename(columns={'Solar power generated (W)': 'Solar(W)'}, inplace=True)
         df_actual["Solar(W)"] = pd.to_numeric(df_actual["Solar(W)"])
-        df_actual["Generation(W/m2)"] = df_actual["Solar(W)"] / PanelA
+        df_actual["Generation(W/m2)"] = df_actual["Solar(W)"] / settings.PanelA
         df_actual["Timestamp"] = pd.to_datetime(df_actual["Timestamp"].str.slice(0, 19),format='%d/%m/%Y %H:%M:%S')  # convert timestamp to a datetime format that Python understands
 
-        df_chart = df_actual.iloc[-100:] # just get last 100 entries
+        df_chart = df_actual.iloc[-settings.numlive:] # just get last 100 entries
 
         livedata = [go.Scatter(x=df_chart["Timestamp"], y=df_chart["Generation(W/m2)"], mode='lines')]
 
@@ -175,7 +183,8 @@ def dash_test1(app, df_annual):
             'data': livedata,
             'layout': go.Layout(
                 xaxis={'title': 'Timestamp'},
-                yaxis={'title': 'Generation (W/m2)'}
+                yaxis={'title': 'Solar power (W/m2)'},
+                margin=dict(t=10)
             ),
         }
 
@@ -196,7 +205,8 @@ def dash_test1(app, df_annual):
             'data': [plotdata],
             'layout': go.Layout(
                 xaxis={'title': 'Month'},
-                yaxis={'title': 'Reduction in electricity bill ($)'}
+                yaxis={'title': 'Bill reduction ($)'},
+                margin=dict(t=10)
             ),
         }
 
@@ -220,7 +230,10 @@ def dash_test1(app, df_annual):
             'data': plotdata1,
             'layout': go.Layout(
                 xaxis={'title': 'Month'},
-                yaxis={'title': 'Electricity (kW)'}
+                yaxis={'title': 'Electricity (kW)'},
+                legend_orientation='h',
+                legend = dict(x=0.25, y=1.2),
+                margin=dict(t=10)
             ),
         }
 
@@ -239,7 +252,7 @@ def dash_test1(app, df_annual):
         payback = selected_area*selected_panelcost/savings
         years, months = divmod(payback, 1)
         months = months*12
-        return "The payback period is {:.0f} years and {:.0f} month(s), with annual savings of ${:,.2f}".format(years, months, savings)
+        return "Based on the inputs below the payback period is {:.0f} years and {:.0f} month(s), with annual savings of ${:,.2f}".format(years, months, savings)
 
     @app.callback(
         Output('sensorgraph', 'figure'),
@@ -256,7 +269,8 @@ def dash_test1(app, df_annual):
             'data': plotdata2,
             'layout': go.Layout(
                 xaxis={'title': 'Timestamp'},
-                yaxis={'title': 'Solar power measured (W/m2)'}
+                yaxis={'title': 'Solar power (W/m2)'},
+                margin=dict(t=10)
             ),
         }
 
@@ -283,6 +297,20 @@ def dash_test1(app, df_annual):
             'data': plotdata3,
             'layout': go.Layout(
                 xaxis={'title': 'Timestamp'},
-                yaxis={'title': 'Electricity (kW)'}
+                yaxis={'title': 'Electricity (kW)'},
+                legend_orientation='h',
+                legend=dict(x=0.25, y=1.2),
+                margin=dict(t=10)
             ),
         }
+
+    @app.callback(
+        [Output('input-area', 'value'),
+         Output('input-feedin', 'value'),
+         Output('input-offpeak', 'value'),
+         Output('input-shoulder', 'value'),
+         Output('input-peak', 'value'),
+         Output('input-panelcost','value')],
+        [Input('reset-btn', 'n_clicks')])
+    def resetall(n):
+        return settings.default_area, settings.default_feedin, settings.default_offpeak, settings.default_shoulder, settings.default_peak, settings.default_panelcost

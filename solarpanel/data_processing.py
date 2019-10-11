@@ -6,10 +6,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import pandas as pd
 import numpy as np
-import config
-
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-SPREADSHEET_ID = '1hgnyrI9G6eB5pcBvBAaubaRcMFuLoAR0iLC_-aotFrY' # manually set from Google Sheets
+import settings
 
 def get_google_data(SHEET_RANGE):
     creds = None
@@ -25,7 +22,7 @@ def get_google_data(SHEET_RANGE):
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+                'credentials.json', settings.SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open('token.pickle', 'wb') as token:
@@ -35,7 +32,7 @@ def get_google_data(SHEET_RANGE):
 
     # Call the Sheets API
     sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
+    result = sheet.values().get(spreadsheetId=settings.SPREADSHEET_ID,
                                 range=SHEET_RANGE).execute()
     return result
 
