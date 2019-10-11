@@ -5,20 +5,13 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import pandas as pd
-
-
+import numpy as np
+import config
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
-# The google sheet ID - will need to make sure this is up to date once the sensor is connected
-SAMPLE_SPREADSHEET_ID = '1P4gwpYzmONzCEiHe6IrZNU6V25RDOgdGZg0XhU-u6uc'
-# range of spreadsheet
-# (if you only write the sheet name, it means the whole sheet)
-SAMPLE_RANGE_NAME = 'PiData!A1:C'
+SPREADSHEET_ID = '1hgnyrI9G6eB5pcBvBAaubaRcMFuLoAR0iLC_-aotFrY' # manually set from Google Sheets
 
-def get_google_sheet():
-    """Shows basic usage of the Sheets API.
-    Prints values from a sample spreadsheet.
-    """
+def get_google_data(SHEET_RANGE):
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -42,8 +35,8 @@ def get_google_sheet():
 
     # Call the Sheets API
     sheet = service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-                                range=SAMPLE_RANGE_NAME).execute()
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID,
+                                range=SHEET_RANGE).execute()
     return result
 
 
@@ -70,3 +63,45 @@ def gsheet2df(result):
         df = pd.concat(all_data, axis=1)
         return df
 
+
+# function to run calculations - takes in a dataframe of solar data, area of panels to install, tariffs and calculates generation, costs and savings
+
+def runcalcs(df, InstalledPanelA, TariffFeedIn, TariffOffPeak, TariffShoulder, TariffPeak):
+    df_tariffs = pd.Series([TariffOffPeak, TariffShoulder, TariffPeak], index=[0, 1, 2]) # grid tariffs in c/kWh: 0 = offpeak, 1 = shoulder, 2 = peak
+
+    df["Generation(kW)"] = df[
+                               "Generation(W/m2)"] * InstalledPanelA / 1000  # calculate generation from installed panels (hypothetical m2)
+    df["SolarConsumed(kW)"] = df[["House(kW)", "Generation(kW)"]].min(
+        axis=1)  # based on what the house consumed, calculate how much solar is consumed
+    df["SolarExported(kW)"] = df["Generation(kW)"] - df[
+        "House(kW)"]  # if there is solar exceeding what the house needs, export that to the grid
+    df["SolarExported(kW)"] = df["SolarExported(kW)"].clip(lower=0)
+    df["GridConsumed(kW)"] = df["House(kW)"] - df[
+        "Generation(kW)"]  # if not enough solar is generated, will need electricity from the grid
+    df["GridConsumed(kW)"] = df["GridConsumed(kW)"].clip(lower=0)
+    Interval = pd.Timedelta(df["Timestamp"][1] - df["Timestamp"][0]).seconds / 60
+    df["Weekday"] = df["Timestamp"].dt.dayofweek  # Monday = 0, Sunday = 6
+    df["Month"] = df["Timestamp"].dt.month # month in number format - for use in summarising results
+    df["Hour"] = df["Timestamp"].dt.hour # hour of this interval in number format - for determining appropriate tariff
+
+    # map days of the week to weekdays/weekend - used to determine appropriate tariff
+    df_days = pd.Series([0, 0, 0, 0, 0, 1, 1], index=[0, 1, 2, 3, 4, 5, 6])  # 0 = weekday, 1 = weekend
+    df["DayType"] = df["Weekday"].map(df_days) # m
+
+    # this sets up the timings for peak/offpeak tariffs from the grid
+    # uses times from Synergy current rates
+    # 0 = offpeak, 1 = shoulder, 2 = peak
+    conditions = [
+        (df["Hour"] < 7) | (df["Hour"] >= 21),  # before 7am or after 9pm
+        (df["Weekday"] == 0) & (df["Hour"] >= 7) & (df["Hour"] < 15),  # weekdays from 7am-3pm
+        (df["Weekday"] == 1) & (df["Hour"] >= 7) & (df["Hour"] < 21),  # weekends from 7am-9pm
+        (df["Weekday"] == 0) & (df["Hour"] >= 15) & (df["Hour"] < 21)]  # weekdays from 3pm-9pm
+    choices = [0, 1, 1, 2]
+
+    df["TariffType"] = np.select(conditions, choices) # identify which tariff applies in each interval
+    df["Tariff"] = df["TariffType"].map(df_tariffs)  # map actual tariffs in c/kWh onto the intervals
+
+    df["RevenueFeedIn"] = df["SolarExported(kW)"] / (60 / Interval) * TariffFeedIn / 100  # how much money is made from exporting solar
+    df["SavingsSolar"] = df["SolarConsumed(kW)"] / (60 / Interval) * df["Tariff"] / 100  # how much money is saved from using solar instead of grid
+    df["BillReduction"] = df["RevenueFeedIn"] + df["SavingsSolar"]  # total reduction in electricity bill
+    return df

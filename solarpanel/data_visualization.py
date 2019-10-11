@@ -1,55 +1,13 @@
-import numpy as np
 import dash_core_components as dcc
 import dash_html_components as html
 import pandas as pd
 from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 from datetime import datetime as dt
+from solarpanel.data_processing import get_google_data, gsheet2df, runcalcs
+import config
 
-# function to run calculations - takes in a dataframe of solar data, area of panels to install, tariffs and calculates generation, costs and savings
-
-def runcalcs(df, InstalledPanelA, TariffFeedIn, TariffOffPeak, TariffShoulder, TariffPeak):
-
-    df_tariffs = pd.Series([TariffOffPeak, TariffShoulder, TariffPeak], index=[0, 1, 2]) # grid tariffs in c/kWh: 0 = offpeak, 1 = shoulder, 2 = peak
-
-    df["Generation(kW)"] = df[
-                               "Generation(W/m2)"] * InstalledPanelA / 1000  # calculate generation from installed panels (hypothetical m2)
-    df["SolarConsumed(kW)"] = df[["House(kW)", "Generation(kW)"]].min(
-        axis=1)  # based on what the house consumed, calculate how much solar is consumed
-    df["SolarExported(kW)"] = df["Generation(kW)"] - df[
-        "House(kW)"]  # if there is solar exceeding what the house needs, export that to the grid
-    df["SolarExported(kW)"] = df["SolarExported(kW)"].clip(lower=0)
-    df["GridConsumed(kW)"] = df["House(kW)"] - df[
-        "Generation(kW)"]  # if not enough solar is generated, will need electricity from the grid
-    df["GridConsumed(kW)"] = df["GridConsumed(kW)"].clip(lower=0)
-    Interval = pd.Timedelta(df["Timestamp"][1] - df["Timestamp"][0]).seconds / 60
-    df["Weekday"] = df["Timestamp"].dt.dayofweek  # Monday = 0, Sunday = 6
-    df["Month"] = df["Timestamp"].dt.month # month in number format - for use in summarising results
-    df["Hour"] = df["Timestamp"].dt.hour # hour of this interval in number format - for determining appropriate tariff
-
-    # map days of the week to weekdays/weekend - used to determine appropriate tariff
-    df_days = pd.Series([0, 0, 0, 0, 0, 1, 1], index=[0, 1, 2, 3, 4, 5, 6])  # 0 = weekday, 1 = weekend
-    df["DayType"] = df["Weekday"].map(df_days) # m
-
-    # this sets up the timings for peak/offpeak tariffs from the grid
-    # uses times from Synergy current rates
-    # 0 = offpeak, 1 = shoulder, 2 = peak
-    conditions = [
-        (df["Hour"] < 7) | (df["Hour"] >= 21),  # before 7am or after 9pm
-        (df["Weekday"] == 0) & (df["Hour"] >= 7) & (df["Hour"] < 15),  # weekdays from 7am-3pm
-        (df["Weekday"] == 1) & (df["Hour"] >= 7) & (df["Hour"] < 21),  # weekends from 7am-9pm
-        (df["Weekday"] == 0) & (df["Hour"] >= 15) & (df["Hour"] < 21)]  # weekdays from 3pm-9pm
-    choices = [0, 1, 1, 2]
-
-    df["TariffType"] = np.select(conditions, choices) # identify which tariff applies in each interval
-    df["Tariff"] = df["TariffType"].map(df_tariffs)  # map actual tariffs in c/kWh onto the intervals
-
-    df["RevenueFeedIn"] = df["SolarExported(kW)"] / (60 / Interval) * TariffFeedIn / 100  # how much money is made from exporting solar
-    df["SavingsSolar"] = df["SolarConsumed(kW)"] / (60 / Interval) * df["Tariff"] / 100  # how much money is saved from using solar instead of grid
-    df["BillReduction"] = df["RevenueFeedIn"] + df["SavingsSolar"]  # total reduction in electricity bill
-    return df
-
-def dash_test1(app, sensor_df):
+def dash_test1(app, df_annual):
 
     def description_card():
         """
@@ -144,7 +102,18 @@ def dash_test1(app, sensor_df):
                     html.Div(id='payback'),
                     html.Hr(),
 
-                    # First chart
+                    # Zeroth chart - live sensor data
+                    html.Div(
+                        id="sensor-graph",
+                        children=[
+                            html.B("Live sensor data"),
+                            dcc.Graph(id="sensorstream"),
+                            dcc.Interval(id='interval-component',interval=5*1000),
+                            html.Hr(),
+                        ],
+                    ),
+
+                   # First chart
                     html.Div(
                         id="first-graph",
                         children=[
@@ -168,7 +137,7 @@ def dash_test1(app, sensor_df):
                     html.Div(
                         id="third-graph",
                         children=[
-                            html.B("Raw sensor data"),
+                            html.B("Annual sensor data"),
                             dcc.Graph(id="sensorgraph"),
                             html.Hr(),
                         ],
@@ -189,6 +158,27 @@ def dash_test1(app, sensor_df):
     className='row'
     )
 
+    @app.callback(Output('sensorstream', 'figure'),
+                  [Input('interval-component', 'n_intervals')])
+    def update_metrics(n):
+        df_actual = gsheet2df(get_google_data(SENSOR_RANGE))
+        df_actual.rename(columns={'Solar power generated (W)': 'Solar(W)'}, inplace=True)
+        df_actual["Solar(W)"] = pd.to_numeric(df_actual["Solar(W)"])
+        df_actual["Generation(W/m2)"] = df_actual["Solar(W)"] / PanelA
+        df_actual["Timestamp"] = pd.to_datetime(df_actual["Timestamp"].str.slice(0, 19),format='%d/%m/%Y %H:%M:%S')  # convert timestamp to a datetime format that Python understands
+
+        df_chart = df_actual.iloc[-100:] # just get last 100 entries
+
+        livedata = [go.Scatter(x=df_chart["Timestamp"], y=df_chart["Generation(W/m2)"], mode='lines')]
+
+        return {
+            'data': livedata,
+            'layout': go.Layout(
+                xaxis={'title': 'Timestamp'},
+                yaxis={'title': 'Generation (W/m2)'}
+            ),
+        }
+
     @app.callback(
         Output('monthlysavingsgraph', 'figure'),
         [Input('input-area', 'value'),
@@ -198,7 +188,7 @@ def dash_test1(app, sensor_df):
          Input('input-peak','value')])
 
     def update_figure(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak):
-        df_1 = runcalcs(sensor_df, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
+        df_1 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
         df_1_agg = df_1.groupby('Month', as_index=False).agg({"BillReduction": "sum"})
         plotdata = go.Bar(x=df_1_agg['Month'], y=df_1_agg['BillReduction'])
 
@@ -220,7 +210,7 @@ def dash_test1(app, sensor_df):
 
     def update_figure2(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak):
 
-        df_4 = runcalcs(sensor_df, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
+        df_4 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
         df_4_agg = df_4.groupby('Month', as_index=False).agg({"SolarConsumed(kW)": "sum","GridConsumed(kW)": "sum", "SolarExported(kW)": "sum"})
 
         plotdata1 = [go.Bar(name='Solar consumed', x=df_4_agg['Month'], y=df_4_agg['SolarConsumed(kW)']),
@@ -244,7 +234,7 @@ def dash_test1(app, sensor_df):
          Input('input-panelcost','value')])
 
     def update_payback(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak, selected_panelcost):
-        df_2 = runcalcs(sensor_df, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
+        df_2 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
         savings = df_2["BillReduction"].sum()
         payback = selected_area*selected_panelcost/savings
         years, months = divmod(payback, 1)
@@ -257,7 +247,7 @@ def dash_test1(app, sensor_df):
          Input("date-picker-select", "end_date")])
 
     def update_figure3(start_date, end_date):
-        df_5 = sensor_df.set_index("Timestamp")[start_date:end_date]
+        df_5 = df_annual.set_index("Timestamp")[start_date:end_date]
         df_5 = df_5.reset_index()
 
         plotdata2 = [go.Scatter(x=df_5["Timestamp"], y=df_5["Generation(W/m2)"], mode='lines')]
@@ -282,7 +272,7 @@ def dash_test1(app, sensor_df):
          ])
 
     def update_figure4(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak, start_date, end_date):
-        df_6 = runcalcs(sensor_df, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
+        df_6 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
         df_6 = df_6.set_index("Timestamp")[start_date:end_date]
         df_6 = df_6.reset_index()
 

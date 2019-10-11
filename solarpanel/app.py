@@ -1,17 +1,12 @@
-from solarpanel.data_processing import get_google_sheet, gsheet2df
+from solarpanel.data_processing import get_google_data, gsheet2df
 from solarpanel.data_visualization import dash_test1
 import dash
 import pandas as pd
+import config
 
-# main function of the app
 if __name__ == '__main__':
-    df1 = gsheet2df(get_google_sheet())
 
-    # Panel constants
-    PanelW = 70  # panel width in mm
-    PanelL = 55  # panel length in mm
-    Rating = 0.5  # cell rating in W
-    PanelA = (PanelW / 1000) * (PanelL / 1000)
+    df1 = gsheet2df(get_google_data(TEST_RANGE))
 
     df1.rename(columns={'Solar power generated (W)': 'Solar(W)',
                        'Household consumption (kW)': 'House(kW)'}, inplace=True)
