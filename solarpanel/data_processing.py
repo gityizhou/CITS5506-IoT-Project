@@ -66,9 +66,6 @@ def gsheet2df(result):
 def runcalcs(df, InstalledPanelA, TariffFeedIn, TariffOffPeak, TariffShoulder, TariffPeak):
     df_tariffs = pd.Series([TariffOffPeak, TariffShoulder, TariffPeak], index=[0, 1, 2]) # grid tariffs in c/kWh: 0 = offpeak, 1 = shoulder, 2 = peak
 
-    print(df.shape)
-    print(list(df))
-
     df["Generation(kW)"] = df["Generation(W/m2)"] * InstalledPanelA / 1000  # calculate generation from installed panels (hypothetical m2)
     df["SolarConsumed(kW)"] = df[["House(kW)", "Generation(kW)"]].min(axis=1)
         #df[["House(kW)", "Generation(kW)"]].min(axis=1)  # based on what the house consumed, calculate how much solar is consumed

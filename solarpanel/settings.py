@@ -1,4 +1,5 @@
 # Global variables
+from datetime import datetime as dt
 
 SENSOR_RANGE = 'real_data!A1:D'
 TEST_RANGE = 'test_data!A1:C'
@@ -25,3 +26,6 @@ default_feedin = 7.135
 default_offpeak = 15.1002
 default_shoulder = 28.7076
 default_peak = 54.8142
+
+default_startdate = dt(2018, 1, 29)
+default_enddate = dt(2018, 1, 31)

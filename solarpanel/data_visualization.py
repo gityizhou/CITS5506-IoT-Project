@@ -9,6 +9,7 @@ import settings
 
 def dash_test1(app, df_annual):
 
+    # layout for the description and payback at the top
     def description_card():
         """
         :return: A Div containing dashboard title & descriptions.
@@ -16,7 +17,7 @@ def dash_test1(app, df_annual):
         return html.Div(
             id="description-card",
             children=[
-                html.H1("Solar Installation Explorer"),
+                html.H1("Residential Solar Installation Explorer"),
   #              html.H3("Put some subheading text here if needed"),
                 html.Div(
                     id="intro",
@@ -28,14 +29,13 @@ def dash_test1(app, df_annual):
             ],
         )
 
+    # layout for all of the controls
     def generate_control_card():
-        """
-        :return: A Div containing controls for graphs.
-        """
         return html.Div(
             id="control-card",
             # all of the controls for the dash
             children=[
+                html.B("Dashboard controls"),
                 html.P("Area of panels to install (m2):"),
                 dcc.Input(id='input-area', value=settings.default_area, type='number'), # default is 5m2
                 html.Br(),
@@ -78,31 +78,30 @@ def dash_test1(app, df_annual):
             ]
         )
 
+    # overall layout
     app.layout = html.Div(
         id="app-container",
         children=[
-
             html.Div(
                 id="titlebox",
                 className="twelve columns",
                 children=[description_card()],
                 style={'marginBottom': 50, 'marginTop': 25}
             ),
-
             html.Div(
                 id="left-column",
                 className="three columns",
                 children=[generate_control_card()],
-                style={'marginLeft': 20, 'marginRight': 20}
+                style={'marginLeft': 20, 'marginRight': 0}
             ),
 
-            # Right column - charts
+            # Middle column
             html.Div(
                 id="mid-column",
                 className="four columns",
                 children=[
 
-                    # Zeroth chart - live sensor data
+                    # Live sensor data
                     html.Div(
                         id="sensor-graph",
                         children=[
@@ -111,10 +110,9 @@ def dash_test1(app, df_annual):
                             dcc.Interval(id='interval-component',interval=settings.wait_seconds*1000), # interval is in milliseconds so x1000
                             html.Hr(),
                         ],
-
                     ),
 
-                    # Third chart
+                    # Annual sensor data
                     html.Div(
                         id="third-graph",
                         children=[
@@ -124,8 +122,10 @@ def dash_test1(app, df_annual):
                         ],
                     ),
                 ],
+                style={'marginLeft': 0, 'marginRight': 0}
             ),
 
+            # Right column
             html.Div(
                 id="right-column",
                 className="four columns",
@@ -185,138 +185,103 @@ def dash_test1(app, df_annual):
                 xaxis={'title': 'Timestamp'},
                 yaxis={'title': 'Solar power (W/m2)'},
                 margin=go.layout.Margin(
-                    b=30,
+                    b=50,
                     t=10)
             ),
         }
 
+    # update all charts that depend on dash inputs
     @app.callback(
-        Output('monthlysavingsgraph', 'figure'),
-        [Input('input-area', 'value'),
-         Input('input-feedin','value'),
-         Input('input-offpeak','value'),
-         Input('input-shoulder','value'),
-         Input('input-peak','value')])
-
-    def update_figure(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak):
-        df_1 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
-        df_1_agg = df_1.groupby('Month', as_index=False).agg({"BillReduction": "sum"})
-        plotdata1 = go.Bar(x=df_1_agg['Month'], y=df_1_agg['BillReduction'])
-
-        return {
-            'data': [plotdata1],
-            'layout': go.Layout(
-                xaxis={'title': 'Month'},
-                yaxis={'title': 'Bill reduction ($)'},
-                margin=go.layout.Margin(
-                    b=30,
-                    t=10)
-            ),
-        }
-
-    @app.callback(
-        Output('monthlydetailedgraph', 'figure'),
-        [Input('input-area', 'value'),
-         Input('input-feedin','value'),
-         Input('input-offpeak','value'),
-         Input('input-shoulder','value'),
-         Input('input-peak','value')])
-
-    def update_figure2(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak):
-
-        df_4 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
-        df_4_agg = df_4.groupby('Month', as_index=False).agg({"SolarConsumed(kW)": "sum","GridConsumed(kW)": "sum", "SolarExported(kW)": "sum"})
-
-        plotdata4 = [go.Bar(name='Solar consumed', x=df_4_agg['Month'], y=df_4_agg['SolarConsumed(kW)']),
-                     go.Bar(name='Solar exported', x=df_4_agg['Month'], y=df_4_agg['SolarExported(kW)']),
-                     go.Bar(name='Grid consumed', x=df_4_agg['Month'], y=df_4_agg['GridConsumed(kW)'])]
-        return {
-            'data': plotdata4,
-            'layout': go.Layout(
-                xaxis={'title': 'Month'},
-                yaxis={'title': 'Electricity (kW)'},
-                margin=go.layout.Margin(
-                    b=30,
-                    t=10)
-            ),
-        }
-
-    @app.callback(
-        Output('payback', 'children'),
+        [Output('monthlysavingsgraph', 'figure'),
+         Output('monthlydetailedgraph', 'figure'),
+         Output('payback', 'children'),
+         Output('sensorgraph', 'figure'),
+         Output('profilegraph', 'figure')],
         [Input('input-area', 'value'),
          Input('input-feedin','value'),
          Input('input-offpeak','value'),
          Input('input-shoulder','value'),
          Input('input-peak','value'),
-         Input('input-panelcost','value')])
-
-    def update_payback(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak, selected_panelcost):
-        df_2 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
-        savings = df_2["BillReduction"].sum()
-        payback = selected_area*selected_panelcost/savings
-        years, months = divmod(payback, 1)
-        months = months*12
-        return '''Based on the inputs below the payback period is _**{:.0f} years and {:.0f} month(s)**_, with annual savings of _**${:,.2f}**_'''.format(years, months, savings)
-
-    @app.callback(
-        Output('sensorgraph', 'figure'),
-        [Input("date-picker-select", "start_date"),
-         Input("date-picker-select", "end_date")])
-
-    def update_figure3(start_date, end_date):
-        df_5 = df_annual.set_index("Timestamp")[start_date:end_date]
-        df_5 = df_5.reset_index()
-
-        plotdata5 = [go.Scatter(x=df_5["Timestamp"], y=df_5["Generation(W/m2)"], mode='lines')]
-
-        return {
-            'data': plotdata5,
-            'layout': go.Layout(
-                xaxis={'title': 'Timestamp'},
-                yaxis={'title': 'Solar power (W/m2)'},
-                margin=go.layout.Margin(
-                    b=40,
-                    t=10)
-            ),
-        }
-
-    @app.callback(
-        Output('profilegraph', 'figure'),
-        [Input('input-area', 'value'),
-         Input('input-feedin', 'value'),
-         Input('input-offpeak', 'value'),
-         Input('input-shoulder', 'value'),
-         Input('input-peak', 'value'),
+         Input('input-panelcost','value'),
          Input("date-picker-select", "start_date"),
-         Input("date-picker-select", "end_date")
-         ])
+         Input("date-picker-select", "end_date")])
+    def update_figures(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak, selected_panelcost, start_date, end_date):
+        df_1 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
+        df_1_agg = df_1.groupby('Month', as_index=False).agg({"BillReduction": "sum"})
 
-    def update_figure4(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak, start_date, end_date):
-        df_6 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
-        df_6 = df_6.set_index("Timestamp")[start_date:end_date]
-        df_6 = df_6.reset_index()
+        df_2_agg = df_1.groupby('Month', as_index=False).agg(
+            {"SolarConsumed(kW)": "sum", "GridConsumed(kW)": "sum", "SolarExported(kW)": "sum"})
 
-        plotdata6 = [go.Scatter(name='Solar generated', x=df_6["Timestamp"], y=df_6["Generation(kW)"], mode='lines'),
-                     go.Scatter(name='Consumption', x=df_6["Timestamp"], y=df_6["House(kW)"], mode='lines')]
+        savings = df_1["BillReduction"].sum()
+        payback = selected_area * selected_panelcost / savings
+        years, months = divmod(payback, 1)
+        months = months * 12
 
-        return {
-            'data': plotdata6,
-            'layout': go.Layout(
-                xaxis={'title': 'Timestamp'},
-                yaxis={'title': 'Electricity (kW)'},
-                margin=go.layout.Margin(
-                    b=40,
-                    t=10)
-            ),
-        }
+        df_3 = df_annual.set_index("Timestamp")[start_date:end_date]
+        df_3 = df_3.reset_index()
 
+        df_4 = df_1.set_index("Timestamp")[start_date:end_date]
+        df_4 = df_4.reset_index()
+
+        # bar chart by month for reduction in electricity bill
+        plotdata1 = go.Bar(x=df_1_agg['Month'], y=df_1_agg['BillReduction'])
+        data1return = {'data': [plotdata1],
+                       'layout': go.Layout(
+                           xaxis={'title': 'Month'},
+                           yaxis={'title': 'Bill reduction ($)'},
+                           margin=go.layout.Margin(b=50, t=10))}
+
+        # bar chart by month showing split by solar consumed, grid consumed and solar exported
+        plotdata2 = [go.Bar(name='Solar consumed', x=df_2_agg['Month'], y=df_2_agg['SolarConsumed(kW)']),
+                     go.Bar(name='Solar exported', x=df_2_agg['Month'], y=df_2_agg['SolarExported(kW)']),
+                     go.Bar(name='Grid consumed', x=df_2_agg['Month'], y=df_2_agg['GridConsumed(kW)'])]
+        data2return = {'data': plotdata2,
+                       'layout': go.Layout(
+                           xaxis={'title': 'Month'},
+                           yaxis={'title': 'Electricity (kW)'},
+                           margin=go.layout.Margin(b=50,t=10))}
+
+        # text for payback period at the top
+        data3return = '''Based on the inputs below the payback period is _**{:.0f} years and {:.0f} month(s)**_, with annual savings of _**${:,.2f}**_'''.format(
+            years, months, savings)
+
+        # annual sensor data graph
+        plotdata3 = [go.Scatter(x=df_3["Timestamp"], y=df_3["Generation(W/m2)"], mode='lines')]
+        data4return =  {'data': plotdata3,
+                        'layout': go.Layout(
+                            xaxis={'title': 'Timestamp'},
+                            yaxis={'title': 'Solar power (W/m2)'},
+                            margin=go.layout.Margin(b=50,t=10))}
+
+        # detailed profile line chart
+        plotdata4 = [go.Scatter(name='Solar consumed', x=df_4["Timestamp"], y=df_4["SolarConsumed(kW)"], mode='lines'),
+                     go.Scatter(name='Solar exported', x=df_4["Timestamp"], y=df_4["SolarExported(kW)"], mode='lines'),
+                     go.Scatter(name='Grid consumed', x=df_4["Timestamp"], y=df_4["GridConsumed(kW)"], mode='lines'),]
+        data5return = {'data': plotdata4,
+                       'layout': go.Layout(
+                           xaxis={'title': 'Timestamp'},
+                           yaxis={'title': 'Electricity (kW)'},
+                           margin=go.layout.Margin(b=50,t=10))}
+
+        return data1return, data2return, data3return, data4return, data5return
+
+    # reset all inputs back to default values
     @app.callback(
         [Output('input-area', 'value'),
          Output('input-feedin', 'value'),
          Output('input-offpeak', 'value'),
          Output('input-shoulder', 'value'),
          Output('input-peak', 'value'),
-         Output('input-panelcost','value')],
+         Output('input-panelcost','value'),
+         Output("date-picker-select", "start_date"),
+         Output("date-picker-select", "end_date")],
         [Input('reset-btn', 'n_clicks')])
     def resetall(n):
-        return settings.default_area, settings.default_feedin, settings.default_offpeak, settings.default_shoulder, settings.default_peak, settings.default_panelcost
+        return settings.default_area, \
+               settings.default_feedin, \
+               settings.default_offpeak, \
+               settings.default_shoulder, \
+               settings.default_peak, \
+               settings.default_panelcost, \
+               settings.default_startdate, \
+               settings.default_enddate

@@ -17,7 +17,7 @@ if __name__ == '__main__':
     df1["Timestamp"] = pd.to_datetime(df1["Timestamp"].str.slice(0, 19),
                                      format='%d/%m/%Y %H:%M:%S')  # convert timestamp to a datetime format that Python understands
 
-    external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+    external_stylesheets = ['https://codepen.io/meganb/pen/YzzwWqg.css']
 
     app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
     dash_test1(app, df1)
