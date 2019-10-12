@@ -23,8 +23,7 @@ def dash_test1(app, df_annual):
                     children="Explore the impact of the proposed size of installed solar panels and electricity pricing structures for the solar data collected.",
                 ),
                 # Payback period and annual savings text
-                html.Div(id='payback'),
-               # html.Hr(),
+                html.Div(dcc.Markdown(id='payback')),
 
             ],
         )
@@ -166,9 +165,10 @@ def dash_test1(app, df_annual):
     className='row'
     )
 
+    # update live sensor data
     @app.callback(Output('sensorstream', 'figure'),
                   [Input('interval-component', 'n_intervals')])
-    def update_metrics(n):
+    def update_live(n):
         df_actual = gsheet2df(get_google_data(settings.SENSOR_RANGE))
         df_actual.rename(columns={'Solar power generated (W)': 'Solar(W)'}, inplace=True)
         df_actual["Solar(W)"] = pd.to_numeric(df_actual["Solar(W)"])
@@ -184,7 +184,9 @@ def dash_test1(app, df_annual):
             'layout': go.Layout(
                 xaxis={'title': 'Timestamp'},
                 yaxis={'title': 'Solar power (W/m2)'},
-                margin=dict(t=10)
+                margin=go.layout.Margin(
+                    b=30,
+                    t=10)
             ),
         }
 
@@ -199,14 +201,16 @@ def dash_test1(app, df_annual):
     def update_figure(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak):
         df_1 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
         df_1_agg = df_1.groupby('Month', as_index=False).agg({"BillReduction": "sum"})
-        plotdata = go.Bar(x=df_1_agg['Month'], y=df_1_agg['BillReduction'])
+        plotdata1 = go.Bar(x=df_1_agg['Month'], y=df_1_agg['BillReduction'])
 
         return {
-            'data': [plotdata],
+            'data': [plotdata1],
             'layout': go.Layout(
                 xaxis={'title': 'Month'},
                 yaxis={'title': 'Bill reduction ($)'},
-                margin=dict(t=10)
+                margin=go.layout.Margin(
+                    b=30,
+                    t=10)
             ),
         }
 
@@ -223,17 +227,17 @@ def dash_test1(app, df_annual):
         df_4 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
         df_4_agg = df_4.groupby('Month', as_index=False).agg({"SolarConsumed(kW)": "sum","GridConsumed(kW)": "sum", "SolarExported(kW)": "sum"})
 
-        plotdata1 = [go.Bar(name='Solar consumed', x=df_4_agg['Month'], y=df_4_agg['SolarConsumed(kW)']),
+        plotdata4 = [go.Bar(name='Solar consumed', x=df_4_agg['Month'], y=df_4_agg['SolarConsumed(kW)']),
                      go.Bar(name='Solar exported', x=df_4_agg['Month'], y=df_4_agg['SolarExported(kW)']),
                      go.Bar(name='Grid consumed', x=df_4_agg['Month'], y=df_4_agg['GridConsumed(kW)'])]
         return {
-            'data': plotdata1,
+            'data': plotdata4,
             'layout': go.Layout(
                 xaxis={'title': 'Month'},
                 yaxis={'title': 'Electricity (kW)'},
-                legend_orientation='h',
-                legend = dict(x=0.25, y=1.2),
-                margin=dict(t=10)
+                margin=go.layout.Margin(
+                    b=30,
+                    t=10)
             ),
         }
 
@@ -252,7 +256,7 @@ def dash_test1(app, df_annual):
         payback = selected_area*selected_panelcost/savings
         years, months = divmod(payback, 1)
         months = months*12
-        return "Based on the inputs below the payback period is {:.0f} years and {:.0f} month(s), with annual savings of ${:,.2f}".format(years, months, savings)
+        return '''Based on the inputs below the payback period is _**{:.0f} years and {:.0f} month(s)**_, with annual savings of _**${:,.2f}**_'''.format(years, months, savings)
 
     @app.callback(
         Output('sensorgraph', 'figure'),
@@ -263,14 +267,16 @@ def dash_test1(app, df_annual):
         df_5 = df_annual.set_index("Timestamp")[start_date:end_date]
         df_5 = df_5.reset_index()
 
-        plotdata2 = [go.Scatter(x=df_5["Timestamp"], y=df_5["Generation(W/m2)"], mode='lines')]
+        plotdata5 = [go.Scatter(x=df_5["Timestamp"], y=df_5["Generation(W/m2)"], mode='lines')]
 
         return {
-            'data': plotdata2,
+            'data': plotdata5,
             'layout': go.Layout(
                 xaxis={'title': 'Timestamp'},
                 yaxis={'title': 'Solar power (W/m2)'},
-                margin=dict(t=10)
+                margin=go.layout.Margin(
+                    b=40,
+                    t=10)
             ),
         }
 
@@ -290,17 +296,17 @@ def dash_test1(app, df_annual):
         df_6 = df_6.set_index("Timestamp")[start_date:end_date]
         df_6 = df_6.reset_index()
 
-        plotdata3 = [go.Scatter(name='Solar generated', x=df_6["Timestamp"], y=df_6["Generation(kW)"], mode='lines'),
+        plotdata6 = [go.Scatter(name='Solar generated', x=df_6["Timestamp"], y=df_6["Generation(kW)"], mode='lines'),
                      go.Scatter(name='Consumption', x=df_6["Timestamp"], y=df_6["House(kW)"], mode='lines')]
 
         return {
-            'data': plotdata3,
+            'data': plotdata6,
             'layout': go.Layout(
                 xaxis={'title': 'Timestamp'},
                 yaxis={'title': 'Electricity (kW)'},
-                legend_orientation='h',
-                legend=dict(x=0.25, y=1.2),
-                margin=dict(t=10)
+                margin=go.layout.Margin(
+                    b=40,
+                    t=10)
             ),
         }
 

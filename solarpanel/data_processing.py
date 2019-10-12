@@ -66,16 +66,14 @@ def gsheet2df(result):
 def runcalcs(df, InstalledPanelA, TariffFeedIn, TariffOffPeak, TariffShoulder, TariffPeak):
     df_tariffs = pd.Series([TariffOffPeak, TariffShoulder, TariffPeak], index=[0, 1, 2]) # grid tariffs in c/kWh: 0 = offpeak, 1 = shoulder, 2 = peak
 
-    df["Generation(kW)"] = df[
-                               "Generation(W/m2)"] * InstalledPanelA / 1000  # calculate generation from installed panels (hypothetical m2)
-    df["SolarConsumed(kW)"] = df[["House(kW)", "Generation(kW)"]].min(
-        axis=1)  # based on what the house consumed, calculate how much solar is consumed
-    df["SolarExported(kW)"] = df["Generation(kW)"] - df[
-        "House(kW)"]  # if there is solar exceeding what the house needs, export that to the grid
-    df["SolarExported(kW)"] = df["SolarExported(kW)"].clip(lower=0)
-    df["GridConsumed(kW)"] = df["House(kW)"] - df[
-        "Generation(kW)"]  # if not enough solar is generated, will need electricity from the grid
-    df["GridConsumed(kW)"] = df["GridConsumed(kW)"].clip(lower=0)
+    print(df.shape)
+    print(list(df))
+
+    df["Generation(kW)"] = df["Generation(W/m2)"] * InstalledPanelA / 1000  # calculate generation from installed panels (hypothetical m2)
+    df["SolarConsumed(kW)"] = df[["House(kW)", "Generation(kW)"]].min(axis=1)
+        #df[["House(kW)", "Generation(kW)"]].min(axis=1)  # based on what the house consumed, calculate how much solar is consumed
+    df["SolarExported(kW)"] = (df["Generation(kW)"] - df["House(kW)"]).clip(lower=0)  # if there is solar exceeding what the house needs, export that to the grid
+    df["GridConsumed(kW)"] = (df["House(kW)"] - df["Generation(kW)"]).clip(lower=0)  # if not enough solar is generated, will need electricity from the grid
     Interval = pd.Timedelta(df["Timestamp"][1] - df["Timestamp"][0]).seconds / 60
     df["Weekday"] = df["Timestamp"].dt.dayofweek  # Monday = 0, Sunday = 6
     df["Month"] = df["Timestamp"].dt.month # month in number format - for use in summarising results
