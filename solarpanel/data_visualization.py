@@ -33,137 +33,170 @@ def dash_test1(app, df_annual):
     def generate_control_card():
         return html.Div(
             id="control-card",
-            # all of the controls for the dash
+            # controls in two columns
             children=[
                 html.B("Dashboard controls"),
-                html.P("Area of panels to install (m2):"),
-                dcc.Input(id='input-area', value=settings.default_area, type='number'), # default is 5m2
-                html.Br(),
-                html.Br(),
-                html.P("Cost of panels to install ($/m2):"),
-                dcc.Input(id='input-panelcost', value= settings.default_panelcost, type='number'),  # default is $1500/m2
-                html.Br(),
-                html.Br(),
-                html.P("Feed in tariff (c/kWh):"),
-                dcc.Input(id='input-feedin', value=settings.default_feedin, type='number'),  # default is 7.135c/kWh
-                html.Br(),
-                html.Br(),
-                html.P("Off peak tariff (c/kWh):"),
-                dcc.Input(id='input-offpeak', value=settings.default_offpeak, type='number'),  # default is 15.1002c/kWh
-                html.Br(),
-                html.Br(),
-                html.P("Shoulder tariff (c/kWh):"),
-                dcc.Input(id='input-shoulder', value=settings.default_shoulder, type='number'),  # default is 28.7076c/kWh
-                html.Br(),
-                html.Br(),
-                html.P("Peak tariff (c/kWh):"),
-                dcc.Input(id='input-peak', value=settings.default_peak, type='number'),  # default is 54.8142c/kWh
-                html.Br(),
-                html.Br(),
+                html.Div(
+                    id="two column controls",
+                    children=[
+                        html.P("Area of panels to install (m\u00b2):"),
+                        dcc.Input(id='input-area', value=settings.default_area, type='number'),  # default is 5m2
+                        html.Br(),
+                        html.Br(),
+                        html.P("Cost of panels ($/m\u00b2):"),
+                        dcc.Input(id='input-panelcost', value=settings.default_panelcost, type='number'),
+                        html.Br(),
+                        html.Br(),
+                        html.P("Feed in tariff (c/kWh):"),
+                        dcc.Input(id='input-feedin', value=settings.default_feedin, type='number'),
+                        html.Br(),
+                        html.Br(),
+                        html.P("Off peak tariff (c/kWh):"),
+                        dcc.Input(id='input-offpeak', value=settings.default_offpeak, type='number'),
+                        html.Br(),
+                        html.Br(),
+                        html.P("Shoulder tariff (c/kWh):"),
+                        dcc.Input(id='input-shoulder', value=settings.default_shoulder, type='number'),
+                        html.Br(),
+                        html.Br(),
+                        html.P("Peak tariff (c/kWh):"),
+                        dcc.Input(id='input-peak', value=settings.default_peak, type='number'),
+                        html.Br(),
+                        html.Br(),
+                    ],
+                    style={'columnCount': 2}
+                ),
+
+                # date range control in single column
                 html.P("Select date range:"),
                 dcc.DatePickerRange(
                     id="date-picker-select",
-                    start_date=dt(2018, 1, 1),
-                    end_date=dt(2018, 1, 15),
+                    start_date=settings.default_startdate,
+                    end_date=settings.default_enddate,
                     min_date_allowed=dt(2018, 1, 1),
                     max_date_allowed=dt(2018, 12, 31),
                     initial_visible_month=dt(2018, 1, 1),
+                    display_format='DD/MM/YY',
+                    start_date_placeholder_text='DD/MM/YY'
                 ),
                 html.Br(),
-               html.Br(),
+                html.Br(),
                 html.Div(
                     id="reset-btn-outer",
                     children=html.Button(id="reset-btn", children="Reset all", n_clicks=0),
                 ),
-            ]
+            ],
         )
 
     # overall layout
     app.layout = html.Div(
         id="app-container",
         children=[
+            # Title and decription
             html.Div(
                 id="titlebox",
                 className="twelve columns",
                 children=[description_card()],
-                style={'marginBottom': 50, 'marginTop': 25}
+                style={'marginBottom': 20, 'marginTop': 20}
             ),
+
+            # Controls on the left
             html.Div(
                 id="left-column",
                 className="three columns",
                 children=[generate_control_card()],
-                style={'marginLeft': 20, 'marginRight': 0}
+                style={'marginLeft': 10, 'marginRight': 0}
             ),
 
-            # Middle column
-            html.Div(
-                id="mid-column",
-                className="four columns",
-                children=[
-
-                    # Live sensor data
-                    html.Div(
-                        id="sensor-graph",
-                        children=[
-                            html.B("Live sensor data"),
-                            dcc.Graph(id="sensorstream", style={'height': '300px', 'marginBottom':'5px'}),
-                            dcc.Interval(id='interval-component',interval=settings.wait_seconds*1000), # interval is in milliseconds so x1000
-                            html.Hr(),
-                        ],
-                    ),
-
-                    # Annual sensor data
-                    html.Div(
-                        id="third-graph",
-                        children=[
-                            html.B("Annual sensor data"),
-                            dcc.Graph(id="sensorgraph", style={'height': '300px'}),
-                            html.Hr(),
-                        ],
-                    ),
-                ],
-                style={'marginLeft': 0, 'marginRight': 0}
-            ),
-
-            # Right column
+            # Charts on the right, in two tabs
             html.Div(
                 id="right-column",
-                className="four columns",
+                className="eight columns",
                 children=[
-                    # First chart
-                    html.Div(
-                        id="first-graph",
-                        children=[
-                            html.B("Monthly savings - reduction in electricity bill"),
-                            dcc.Graph(id="monthlysavingsgraph", style={'height': '250px'}),
-                            html.Hr(),
-                        ],
-                    ),
+                    dcc.Tabs(id="tabs",
+                             children=[
+                                 # First tab - live sensor data
+                                 dcc.Tab(label="Live sensor data",
+                                         children=[
+                                             html.Div(
+                                                 id="livesensor-graph",
+                                                 children=[
+                                                     dcc.Graph(id="sensorstream"),
+                                                     dcc.Interval(id='interval-component', interval=settings.wait_seconds * 1000), # interval is in milliseconds so x1000
+                                                 ],
+                                             ),
+                                         ],
+                                 ),
 
-                    # Second chart
-                    html.Div(
-                        id="second-graph",
-                        children=[
-                            html.B("Monthly electricity breakdown by source"),
-                            dcc.Graph(id="monthlydetailedgraph", style={'height': '250px'}),
-                            html.Hr(),
-                        ],
-                    ),
+                                 # Second tab - results of analysis, this tab has two columns
+                                 dcc.Tab(label="Analysis",
+                                         children=[
+                                             # Left column
+                                             html.Div(
+                                                 id="col1",
+                                                 className="six columns",
+                                                 children=[
+                                                     # Sensor data graph
+                                                     html.Div(
+                                                         id="sensor-graph",
+                                                         children=[
+                                                             html.B("Sensor data in selected date range"),
+                                                             dcc.Graph(id="sensorgraph", style={'height': '250px'}),
+                                                             html.Hr(),
+                                                         ],
+                                                         style={'marginTop': 20, 'marginLeft': 0, 'marginRight': 10}
+                                                     ),
 
-                    # Fourth chart
-                    html.Div(
-                        id="fourth-graph",
-                        children=[
-                            html.B("Anticipated profile"),
-                            dcc.Graph(id="profilegraph"),
-                            html.Hr(),
-                        ],
+                                                     # Detailed profile graph
+                                                     html.Div(
+                                                         id="profile-graph",
+                                                         children=[
+                                                             html.B("Anticipated profile in selected date range"),
+                                                             dcc.Graph(id="profilegraph", style={'height': '250px'}),
+                                                             html.Hr(),
+                                                         ],
+                                                     ),
+                                                 ],
+                                             ),
+
+                                             # Right column
+                                             html.Div(
+                                                 id="col2",
+                                                 className="six columns",
+                                                 children=[
+                                                     # Reduction in bills graph
+                                                     html.Div(
+                                                         id="reduction-graph",
+                                                         children=[
+                                                             html.B("Monthly electricity bill savings"),
+                                                             dcc.Graph(id="monthlysavingsgraph", style={'height': '250px'}),
+                                                             html.Hr(),
+                                                         ],
+                                                         style={'marginTop': 20, 'marginLeft': 0, 'marginRight': 0}
+                                                     ),
+
+                                                     # Detailed breakdown graph
+                                                     html.Div(
+                                                         id="breakdown-graph",
+                                                         children=[
+                                                             html.B("Monthly electricity breakdown by source"),
+                                                             dcc.Graph(id="monthlydetailedgraph", style={'height': '250px'}),
+                                                             html.Hr(),
+                                                         ],
+                                                     ),
+                                                 ],
+                                             ),
+                                         ],
+                                 ),
+                             ],
                     ),
                 ],
-            ),
+            )
         ],
     className='row'
     )
+
+    # ========================== All of the callbacks ==========================
 
     # update live sensor data
     @app.callback(Output('sensorstream', 'figure'),
@@ -175,10 +208,8 @@ def dash_test1(app, df_annual):
         df_actual["Generation(W/m2)"] = df_actual["Solar(W)"] / settings.PanelA
         df_actual["Timestamp"] = pd.to_datetime(df_actual["Timestamp"].str.slice(0, 19),format='%d/%m/%Y %H:%M:%S')  # convert timestamp to a datetime format that Python understands
 
-        df_chart = df_actual.iloc[-settings.numlive:] # just get last 100 entries
-
+        df_chart = df_actual.iloc[-settings.numlive:] # just to get the most recent entries
         livedata = [go.Scatter(x=df_chart["Timestamp"], y=df_chart["Generation(W/m2)"], mode='lines')]
-
         return {
             'data': livedata,
             'layout': go.Layout(
