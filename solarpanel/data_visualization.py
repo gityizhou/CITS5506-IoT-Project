@@ -236,12 +236,20 @@ def dash_test1(app, df_annual):
          Input('input-panelcost','value'),
          Input("date-picker-select", "start_date"),
          Input("date-picker-select", "end_date")])
+
     def update_figures(selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak, selected_panelcost, start_date, end_date):
         df_1 = runcalcs(df_annual, selected_area, selected_feedin, selected_offpeak, selected_shoulder, selected_peak)
+
+        Interval = pd.Timedelta(df_1["Timestamp"][1] - df_1["Timestamp"][0]).seconds / 60
+
+        df_1["SolarConsumed(kWh)"] = df_1["SolarConsumed(kW)"] / (60 / Interval)
+        df_1["GridConsumed(kWh)"] = df_1["GridConsumed(kW)"] / (60 / Interval)
+        df_1["SolarExported(kWh)"] = df_1["SolarExported(kW)"] / (60 / Interval)
+
         df_1_agg = df_1.groupby('Month', as_index=False).agg({"BillReduction": "sum"})
 
         df_2_agg = df_1.groupby('Month', as_index=False).agg(
-            {"SolarConsumed(kW)": "sum", "GridConsumed(kW)": "sum", "SolarExported(kW)": "sum"})
+            {"SolarConsumed(kWh)": "sum", "GridConsumed(kWh)": "sum", "SolarExported(kWh)": "sum"})
 
         savings = df_1["BillReduction"].sum()
         payback = selected_area * selected_panelcost / savings
@@ -263,13 +271,13 @@ def dash_test1(app, df_annual):
                            margin=go.layout.Margin(b=50, t=10))}
 
         # bar chart by month showing split by solar consumed, grid consumed and solar exported
-        plotdata2 = [go.Bar(name='Solar consumed', x=df_2_agg['Month'], y=df_2_agg['SolarConsumed(kW)']),
-                     go.Bar(name='Solar exported', x=df_2_agg['Month'], y=df_2_agg['SolarExported(kW)']),
-                     go.Bar(name='Grid consumed', x=df_2_agg['Month'], y=df_2_agg['GridConsumed(kW)'])]
+        plotdata2 = [go.Bar(name='Solar consumed', x=df_2_agg['Month'], y=df_2_agg['SolarConsumed(kWh)']),
+                     go.Bar(name='Solar exported', x=df_2_agg['Month'], y=df_2_agg['SolarExported(kWh)']),
+                     go.Bar(name='Grid consumed', x=df_2_agg['Month'], y=df_2_agg['GridConsumed(kWh)'])]
         data2return = {'data': plotdata2,
                        'layout': go.Layout(
                            xaxis={'title': 'Month'},
-                           yaxis={'title': 'Electricity (kW)'},
+                           yaxis={'title': 'Electricity (kWh)'},
                            margin=go.layout.Margin(b=50,t=10))}
 
         # text for payback period at the top
