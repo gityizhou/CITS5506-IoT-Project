@@ -8,7 +8,7 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 SPREADSHEET_ID = '1hgnyrI9G6eB5pcBvBAaubaRcMFuLoAR0iLC_-aotFrY' # manually set from Google Sheets
 
 # frequency between checking google sheets/updating the dash
-wait_seconds = 10
+wait_seconds = 5
 
 # number of points to plot on the live sensor data
 numlive = 100
